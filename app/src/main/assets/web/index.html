@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>WiFiVault</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css?v=120">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 108 108" class="logo" aria-hidden="true">
+      <circle cx="54" cy="54" r="33" />
+      <path d="M32.5 42 L40 68 L48 52 L56 68 L63.5 42 L69.8 68 L76 42" />
+    </svg>
+    <span>WiFiVault</span>
+  </div>
+
+  <nav class="crumbs" id="crumbs"></nav>
+
+  <div class="tools">
+    <select id="libSelect" class="lib-select" title="切换共享文件夹"></select>
+    <input id="search" class="search" type="search" placeholder="搜索当前目录" autocomplete="off">
+    <button id="viewToggle" class="icon-btn" title="切换列表/网格视图">▦</button>
+  </div>
+</header>
+
+<main id="content" class="grid"></main>
+<div id="empty" class="empty hidden"></div>
+<div id="loading" class="loading hidden">加载中…</div>
+
+<!-- 图片查看器 -->
+<div id="lightbox" class="overlay hidden">
+  <img id="lbImg" alt="">
+  <button class="lb-nav prev" id="lbPrev" aria-label="上一张">‹</button>
+  <button class="lb-nav next" id="lbNext" aria-label="下一张">›</button>
+  <div class="lb-bar">
+    <span id="lbName"></span>
+    <div class="lb-actions">
+      <button class="icon-btn" id="lbZoomOut" title="缩小">－</button>
+      <button class="icon-btn" id="lbZoomIn" title="放大">＋</button>
+      <button class="icon-btn" id="lbClose" title="关闭 (Esc)">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 视频播放器 -->
+<div id="player" class="overlay hidden">
+  <video id="video" playsinline preload="metadata"></video>
+
+  <!-- 原生控件模式：仅保留系统不提供的倍速 / 字幕 / 模式切换 -->
+  <div id="nativeBar" class="native-bar hidden">
+    <button class="icon-btn" id="nvClose" title="关闭 (Esc)">关闭</button>
+    <span id="nvTitle" class="v-title"></span>
+    <select id="nvRate" class="mini-select" title="倍速">
+      <option value="0.5">0.5x</option>
+      <option value="0.75">0.75x</option>
+      <option value="1" selected>1.0x</option>
+      <option value="1.25">1.25x</option>
+      <option value="1.5">1.5x</option>
+      <option value="2">2.0x</option>
+      <option value="3">3.0x</option>
+    </select>
+    <button class="icon-btn" id="nvSub" title="字幕">CC</button>
+    <button class="icon-btn" id="nvFull" title="全屏 (F)">⛶</button>
+    <button class="icon-btn" id="nvMode" title="播放器显示模式">模式·自动</button>
+  </div>
+
+  <div class="spinner hidden" id="vSpinner"></div>
+  <div class="hint hidden" id="hint"></div>
+
+  <!-- 左下角：切换视频 -->
+  <div class="float-left">
+    <button class="float-btn" id="vfPrev" title="上一个视频 ( [ )">⏮</button>
+    <button class="float-btn wide" id="vfSwitch" title="切换视频">⇄ 切换视频</button>
+    <button class="float-btn" id="vfNext" title="下一个视频 ( ] )">⏭</button>
+  </div>
+
+  <!-- 右下角：播放目录 -->
+  <button class="float-btn float-right" id="vfList" title="播放目录（可切换主目录与子目录里的视频）">☰ 播放目录</button>
+
+  <!-- 播放目录抽屉 -->
+  <div id="plPanel" class="pl-panel hidden">
+    <div class="pl-head">
+      <span>播放目录</span>
+      <button class="icon-btn" id="plClose" title="收起">收起</button>
+    </div>
+    <div class="pl-body" id="plBody"></div>
+  </div>
+
+  <div class="ctrl" id="ctrl">
+    <div class="ctrl-top">
+      <span id="vTitle" class="v-title"></span>
+      <div class="ctrl-top-actions">
+        <button class="icon-btn" id="vMode" title="播放器显示模式">模式·自动</button>
+        <button class="icon-btn" id="vClose" title="关闭 (Esc)">关闭</button>
+      </div>
+    </div>
+
+    <div class="seek-row">
+      <span id="vCur" class="time">0:00</span>
+      <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1">
+      <span id="vDur" class="time">0:00</span>
+    </div>
+
+    <div class="ctrl-bottom">
+      <button class="icon-btn" id="vPrev" title="上一个">⏮</button>
+      <button class="icon-btn play" id="vPlay" title="播放/暂停 (空格)">▶</button>
+      <button class="icon-btn" id="vNext" title="下一个">⏭</button>
+      <button class="icon-btn jump" id="vBack" title="快退">«5s</button>
+      <button class="icon-btn jump" id="vFwd" title="快进">5s»</button>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="vVolDown" title="音量 -">🔉</button>
+      <input id="vVol" class="vol" type="range" min="0" max="1" step="0.05" value="1">
+      <button class="icon-btn" id="vVolUp" title="音量 +">🔊</button>
+      <button class="icon-btn" id="vMute" title="静音 (M)">🔇</button>
+      <select id="vRate" class="mini-select" title="倍速">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1.0x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2.0x</option>
+        <option value="3">3.0x</option>
+      </select>
+      <button class="icon-btn" id="vSub" title="字幕">CC</button>
+      <button class="icon-btn" id="vFull" title="全屏 (F)">⛶</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用文件预览（文档 / 文本 / PDF / 图片 / 其他） -->
+<div id="preview" class="overlay hidden">
+  <div class="pv-box">
+    <div class="pv-top">
+      <span id="pvName" class="pv-name"></span>
+      <div class="pv-actions">
+        <button class="icon-btn" id="pvPrevFile" title="上一个文件">‹</button>
+        <button class="icon-btn" id="pvNextFile" title="下一个文件">›</button>
+        <button class="icon-btn" id="pvRaw" title="浏览器新窗口打开">打开</button>
+        <button class="icon-btn" id="pvDl" title="下载到本机">下载</button>
+        <button class="icon-btn" id="pvClose" title="关闭 (Esc)">关闭</button>
+      </div>
+    </div>
+    <div class="pv-body" id="pvBody"></div>
+  </div>
+</div>
+
+<!-- 音频播放条 -->
+<div id="audioBar" class="audio-bar hidden">
+  <span id="aName" class="a-name"></span>
+  <audio id="audio" controls></audio>
+  <button class="icon-btn" id="aClose" title="关闭">✕</button>
+</div>
+
+<!-- 访问密码 -->
+<div id="pinModal" class="overlay hidden">
+  <form class="pin-box" id="pinForm">
+    <h2>需要访问密码</h2>
+    <p>该共享已设置密码，请输入手机端设置的 PIN。</p>
+    <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+    <button class="primary" type="submit">进入</button>
+    <div id="pinErr" class="pin-err"></div>
+  </form>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js?v=120"></script>
+</body>
+</html>

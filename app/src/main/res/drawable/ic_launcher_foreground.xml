@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WiFiVault 标识：圆环取自「金库门(Vault)」，内部为品牌缩写 WV 的连笔字母。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 金库门外圈 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,21 A33,33 0 1,1 54,87 A33,33 0 1,1 54,21"
+        android:strokeAlpha="0.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="3" />
+
+    <!-- WV 连笔字母 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M32.5,42 L40,68 L48,52 L56,68 L63.5,42 L69.8,68 L76,42"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6.5" />
+</vector>
