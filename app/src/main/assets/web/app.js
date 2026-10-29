@@ -271,6 +271,15 @@
 
   function isNativeMode() { return playerEl.dataset.mode === 'native'; }
 
+  /** 手机端不再绘制自定义播放器，统一交给系统原生 <video controls>。 */
+  function isMobilePlayer() {
+    var ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPod|iPad|Mobile/i.test(ua)) return true;
+    return !!(window.matchMedia &&
+      window.matchMedia('(pointer: coarse)').matches &&
+      window.innerWidth <= 900);
+  }
+
   /** 风险机型 / 内置 WebView / 社交 App：系统媒体控件更容易压在页面上。 */
   function riskyPlayerHost() {
     var ua = navigator.userAgent || '';
@@ -283,6 +292,7 @@
   }
 
   function resolvedMode() {
+    if (isMobilePlayer()) return 'native';
     var mode = requestedMode();
     if (mode === 'auto') mode = riskyPlayerHost() ? 'compact' : 'full';
     return MODE_LABELS[mode] && mode !== 'auto' ? mode : 'full';
@@ -291,12 +301,18 @@
   function applyPlayerMode() {
     var requested = requestedMode();
     var mode = resolvedMode();
+    var mobile = isMobilePlayer();
 
     playerEl.dataset.mode = mode;
     video.controls = mode === 'native';
     $('nativeBar').classList.toggle('hidden', mode !== 'native');
+    $('nvList').classList.remove('hidden');
+    $('nvRate').classList.toggle('hidden', mobile);
+    $('nvFull').classList.toggle('hidden', mobile);
+    $('nvMode').classList.toggle('hidden', mobile);
     if (mode === 'native') {
-      video.setAttribute('controlslist', 'nodownload nofullscreen');
+      // 手机上保留系统全屏按钮；桌面原生模式用自定义全屏按钮。
+      video.setAttribute('controlslist', mobile ? 'nodownload' : 'nodownload nofullscreen');
       $('nvTitle').textContent = $('vTitle').textContent;
       $('nvRate').value = $('vRate').value;
     } else {
@@ -324,6 +340,10 @@
   document.addEventListener('fullscreenchange', syncPlayerLayout);
 
   function cyclePlayerMode() {
+    if (isMobilePlayer()) {
+      toast('手机端使用系统播放器，请在「选集」中切换剧集');
+      return;
+    }
     var cur = requestedMode();
     var idx = MODE_ORDER.indexOf(cur);
     modeOverride = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
@@ -477,6 +497,7 @@
 
   function openPlaylist() {
     plOpen = true;
+    playerEl.classList.add('pl-open');
     $('plPanel').classList.remove('hidden');
     renderPlaylist();
     var el = $('plBody').querySelector('.pl-item.active');
@@ -485,6 +506,7 @@
 
   function closePlaylist() {
     plOpen = false;
+    playerEl.classList.remove('pl-open');
     $('plPanel').classList.add('hidden');
   }
 
@@ -845,6 +867,7 @@
   $('vfNext').addEventListener('click', function () { vStep(1); });
   $('vfSwitch').addEventListener('click', togglePlaylist);
   $('vfList').addEventListener('click', togglePlaylist);
+  $('nvList').addEventListener('click', togglePlaylist);
   $('plClose').addEventListener('click', closePlaylist);
   $('plBody').addEventListener('click', function (e) {
     var el = e.target.closest('.pl-item');

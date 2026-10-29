@@ -360,9 +360,12 @@ button, input, select { font: inherit; color: inherit; }
 #player[data-mode="native"] .ctrl,
 #player[data-mode="native"] .float-left,
 #player[data-mode="native"] .float-right,
-#player[data-mode="native"] .pl-panel,
 #player[data-mode="native"] .hint,
 #player[data-mode="native"] .spinner { display: none !important; }
+
+/* 原生控件模式下仍允许打开选集面板，并压住顶部栏 */
+#player[data-mode="native"] .pl-panel { z-index: 9; }
+#player[data-mode="native"].pl-open .native-bar { display: none !important; }
 
 #player[data-mode="native"] #video { touch-action: auto; }
 
@@ -474,6 +477,8 @@ button, input, select { font: inherit; color: inherit; }
   background: rgba(14, 19, 26, .96);
   border-left: 1px solid var(--line);
   box-shadow: -12px 0 30px rgba(0, 0, 0, .45);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .pl-head {

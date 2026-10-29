@@ -916,11 +916,11 @@ private fun SettingsScreen(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    HintLine("观看端的快进按钮与左右滑动灵敏度都使用此数值。")
+                    HintLine("桌面播放器的快进按钮与左右滑动灵敏度都使用此数值。")
 
                     Spacer(Modifier.height(18.dp))
                     Text(
-                        text = "播放器显示模式",
+                        text = "桌面端播放器模式",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(6.dp))
@@ -934,7 +934,7 @@ private fun SettingsScreen(
                                 onClick = {
                                     playerMode = value
                                     settings.playerMode = value
-                                    toast(context, "已切换为$label，观看端刷新后生效")
+                                    toast(context, "已切换为$label，桌面观看端刷新后生效")
                                 },
                                 label = { Text(label) },
                                 modifier = Modifier.weight(1f)
@@ -942,7 +942,7 @@ private fun SettingsScreen(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    HintLine("自动模式会按浏览器/机型选择；画面被系统控件遮挡时，可切到「精简」或「原生」。")
+                    HintLine("手机观看端固定使用系统播放器；桌面 / 平板可选择自动、完整、精简或原生控件。")
                 }
             }
 
@@ -1145,12 +1145,12 @@ private const val GUIDE_TEXT =
         "· 智能电视：用电视自带浏览器打开同一地址，可用遥控器操作\n" +
         "· 完全离线：界面与播放器都内置在 App 内，断网也能正常看\n" +
         "· 视频支持拖动进度（断点续传），图片支持缩放浏览\n" +
-        "· 手机端观看：上下滑动调音量，左右滑动拖进度，长按屏幕倍速播放\n" +
+        "· 手机端观看：点击视频进入系统播放器；顶部「选集」切换剧集，播完自动下一集\n" +
         "· 电脑端观看：键盘 ↑ ↓ 调音量，← → 快退快进，长按画面倍速\n" +
-        "· 播放器左下角可切换上一个 / 下一个，右下角「播放目录」列出主目录与子目录的视频，点一下即可接着播\n" +
+        "· 桌面播放器左下角可切换上一个 / 下一个，右下角「播放目录」列出主目录与子目录的视频，点一下即可接着播\n" +
         "· 视频播完会自动连播目录里的下一个，可在上方开关里关闭\n" +
         "· 文档、PDF、文本、代码、压缩包等文件点击后直接预览，不能预览的格式可下载\n" +
-        "· 播放器显示模式：自动 / 完整 / 精简 / 原生；画面被系统控件遮挡时可手动切换\n" +
+        "· 播放器显示模式：桌面端自动 / 完整 / 精简 / 原生；手机端固定使用系统播放器\n" +
         "· 手机保持本应用在前台或后台运行，观看端才能读到内容"
 
 private fun sanitizeRate(input: String): String {
