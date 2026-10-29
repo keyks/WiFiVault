@@ -285,30 +285,126 @@ button, input, select { font: inherit; color: inherit; }
 .lb-actions { display: flex; gap: 8px; flex-shrink: 0; }
 #lbName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 视频播放器 */
+/* 视频播放器：Plyr 负责控制条，顶部覆盖层保留返回 / 选集 / 字幕 */
 
-#player { flex-direction: column; }
+#player { flex-direction: column; background: #000; }
 
-#video {
+#player .plyr {
   width: 100%;
-  max-height: 100vh;
-  max-height: 100dvh;
+  height: 100%;
+  --plyr-color-main: var(--accent);
+  --plyr-video-background: #000;
+  --plyr-font-family: inherit;
+  --plyr-control-icon-size: 18px;
+  --plyr-control-spacing: 10px;
+  --plyr-range-thumb-height: 13px;
+}
+
+#player .plyr__video-wrapper {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+#player video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
   background: #000;
   outline: none;
   object-fit: contain;
   touch-action: none;
 }
 
+#player.native-fallback video { touch-action: auto; }
+
+#player .plyr__controls {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+#player .plyr__control--overlaid {
+  background: rgba(76, 141, 255, .92);
+}
+
+#player .plyr__control--overlaid:hover {
+  background: var(--accent);
+}
+
+#player:fullscreen { display: flex; }
+#player:fullscreen .plyr { height: 100%; }
+
+.player-topbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 26px;
+  background: linear-gradient(rgba(0, 0, 0, .8), transparent);
+  pointer-events: none;
+  transition: opacity .25s ease;
+}
+
+.player-topbar > * { pointer-events: auto; }
+.player-topbar.fade { opacity: 0; pointer-events: none; }
+
+.pt-group { display: flex; gap: 6px; }
+
+.pt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 10px;
+  background: rgba(18, 24, 32, .72);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.pt-btn:hover,
+.pt-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(46, 62, 82, .88);
+}
+
+.pt-back {
+  padding: 0 11px;
+  font-size: 22px;
+}
+
+.pt-list { margin-left: 2px; }
+
+.player-topbar .v-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 视频加载/解码失败兜底 */
 .player-error {
   position: absolute;
   inset: 0;
-  z-index: 12;
+  z-index: 45;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(0, 0, 0, .72);
+  background: rgba(0, 0, 0, .78);
 }
 
 .pe-box {
@@ -351,102 +447,8 @@ button, input, select { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
-  z-index: 3;
+  z-index: 35;
 }
-
-.ctrl {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
-  background: linear-gradient(transparent, rgba(0, 0, 0, .85));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: opacity .25s ease;
-}
-
-.ctrl.fade { opacity: 0; pointer-events: none; }
-
-.ctrl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ctrl-top-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.v-title { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* 原生控件模式：顶部只补倍速 / 字幕 / 模式切换，右侧留出画中画按钮区域 */
-.native-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 8;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: calc(10px + env(safe-area-inset-top)) calc(52px + env(safe-area-inset-right)) 24px calc(14px + env(safe-area-inset-left));
-  background: linear-gradient(rgba(0, 0, 0, .82), transparent);
-  pointer-events: none;
-}
-
-.native-bar > * { pointer-events: auto; }
-.native-bar .v-title { flex: 1; min-width: 0; font-size: 14px; }
-.native-bar .icon-btn,
-.native-bar .mini-select {
-  background: rgba(18, 24, 32, .72);
-  border-color: rgba(255, 255, 255, .22);
-  color: #fff;
-}
-
-#player[data-mode="native"] .ctrl,
-#player[data-mode="native"] .float-left,
-#player[data-mode="native"] .float-right,
-#player[data-mode="native"] .hint,
-#player[data-mode="native"] .spinner { display: none !important; }
-
-/* 原生控件模式下仍允许打开选集面板，并压住顶部栏 */
-#player[data-mode="native"] .pl-panel { z-index: 9; }
-#player[data-mode="native"].pl-open .native-bar { display: none !important; }
-
-#player[data-mode="native"] #video { touch-action: auto; }
-
-#player[data-mode="compact"] .float-left,
-#player[data-mode="compact"] .float-right,
-#player[data-mode="compact"] .pl-panel,
-#player[data-mode="compact"] #vPrev,
-#player[data-mode="compact"] #vNext,
-#player[data-mode="compact"] #vBack,
-#player[data-mode="compact"] #vFwd,
-#player[data-mode="compact"] #vVolDown,
-#player[data-mode="compact"] #vVol,
-#player[data-mode="compact"] #vVolUp,
-#player[data-mode="compact"] #vMute,
-#player[data-mode="compact"] #vRate,
-#player[data-mode="compact"] #vSub { display: none !important; }
-
-.seek-row { display: flex; align-items: center; gap: 10px; }
-
-.seek { flex: 1; accent-color: var(--accent); }
-.vol { width: 90px; accent-color: var(--accent); }
-.time { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: center; }
-
-.ctrl-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.spacer { flex: 1; }
-
-.icon-btn.play { font-size: 16px; padding: 7px 14px; }
-.icon-btn.jump { font-size: 13px; font-variant-numeric: tabular-nums; }
-.icon-btn.active { border-color: var(--accent); color: var(--accent); }
-
-.spinner {
-  position: absolute;
-  width: 46px;
-  height: 46px;
-  border: 3px solid rgba(255, 255, 255, .25);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
 
 /* 音频条 */
 
@@ -469,40 +471,6 @@ button, input, select { font: inherit; color: inherit; }
 .a-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .audio-bar audio { flex: 2; min-width: 120px; height: 34px; }
 
-/* ---------------------------------------------------------- 播放器浮层按钮 */
-
-.float-left {
-  position: absolute;
-  left: 14px;
-  bottom: calc(var(--ctrl-h, 104px) + 14px + env(safe-area-inset-bottom));
-  z-index: 4;
-  display: flex;
-  gap: 8px;
-}
-
-.float-right {
-  position: absolute;
-  right: 14px;
-  bottom: calc(var(--ctrl-h, 104px) + 14px + env(safe-area-inset-bottom));
-  z-index: 4;
-}
-
-.float-btn {
-  background: rgba(18, 24, 32, .68);
-  border: 1px solid rgba(255, 255, 255, .2);
-  color: #fff;
-  border-radius: 999px;
-  padding: 9px 14px;
-  font-size: 14px;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-}
-
-.float-btn:hover { background: rgba(46, 62, 82, .88); border-color: var(--accent); }
-.float-btn.wide { font-size: 13.5px; }
-
 /* ---------------------------------------------------------- 播放目录抽屉 */
 
 .pl-panel {
@@ -511,7 +479,7 @@ button, input, select { font: inherit; color: inherit; }
   top: 0;
   bottom: 0;
   width: min(340px, 88vw);
-  z-index: 6;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   background: rgba(14, 19, 26, .96);
@@ -744,18 +712,14 @@ button, input, select { font: inherit; color: inherit; }
   .list { padding: 12px; }
   .tile .name { font-size: 14px; }
   .tile .sub { font-size: 12px; }
-  .ctrl { padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); gap: 8px; }
-  /* 让关闭按钮留在左上，避开浏览器右上角的视频嗅探悬浮按钮 */
-  .ctrl-top { justify-content: flex-start; }
-  .ctrl-top .v-title { display: none; }
-  .ctrl-bottom { gap: 6px; }
   .icon-btn { padding: 8px 11px; font-size: 15px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
-  .vol { width: 64px; }
   .hint { font-size: 14px; padding: 10px 14px; }
-  .float-left { left: 10px; gap: 6px; }
-  .float-right { right: 10px; }
-  .float-btn { padding: 8px 12px; font-size: 13px; }
-  .float-btn.wide { font-size: 12.5px; }
+  /* 顶部覆盖层放在左上，避开浏览器右上角的视频嗅探 / 画中画按钮 */
+  .player-topbar { gap: 6px; padding: calc(8px + env(safe-area-inset-top)) 10px 22px; }
+  .player-topbar .v-title { display: none; }
+  .pt-btn { min-width: 34px; height: 34px; padding: 0 8px; font-size: 13px; }
+  .pt-back { padding: 0 9px; font-size: 20px; }
+  .pt-list { margin-left: 0; }
   /* 手机上选集改为底部抽屉，避开浏览器顶部的视频嗅探/悬浮按钮 */
   .pl-panel {
     top: auto;
@@ -763,7 +727,8 @@ button, input, select { font: inherit; color: inherit; }
     right: 0;
     bottom: 0;
     width: 100%;
-    max-height: 62vh;
+    max-height: 68vh;
+    max-height: 68dvh;
     border-left: 0;
     border-top: 1px solid var(--line);
     border-radius: 18px 18px 0 0;
@@ -778,26 +743,16 @@ button, input, select { font: inherit; color: inherit; }
   .pv-text { font-size: 13px; padding: 12px 14px; }
 }
 
-/* 窄屏手机上原生控件栏优先保证按钮，不显示标题 */
-@media (max-width: 480px) {
-  .native-bar { gap: 6px; padding-right: calc(48px + env(safe-area-inset-right)); }
-  .native-bar .v-title { display: none; }
-  .native-bar .icon-btn { padding: 6px 8px; font-size: 13px; }
-  .native-bar .mini-select { padding: 6px 6px; }
-}
-
-/* 横屏手机：压缩上下留白，把控件贴在安全区内 */
+/* 横屏手机：压缩顶部留白，把控件贴在安全区内 */
 @media (orientation: landscape) and (max-height: 560px) {
-  .ctrl { padding: 8px 20px calc(10px + env(safe-area-inset-bottom)); gap: 7px; }
-  .native-bar { padding-top: calc(6px + env(safe-area-inset-top)); }
+  .player-topbar { padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 16px; }
+  .pt-btn { height: 32px; }
 }
 
-/* 平板 / 大屏：放大控件，配合方向键焦点导航 */
+/* 平板 / 大屏：放大顶部按钮，配合方向键焦点导航 */
 @media (min-width: 768px) {
-  .ctrl { font-size: 16px; }
-  .ctrl .icon-btn { font-size: 16px; }
-  .v-title { font-size: 17px; }
-  .native-bar .v-title { font-size: 16px; }
+  .player-topbar .v-title { font-size: 16px; }
+  .pt-btn { min-width: 40px; height: 38px; font-size: 15px; }
 }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

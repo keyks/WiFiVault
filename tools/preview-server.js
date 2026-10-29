@@ -28,14 +28,19 @@ http.createServer((req, res) => {
   };
 
   if (p === '/api/libraries') return send(200, JSON.stringify({ name: 'WiFiVault', libraries: [{ id: 'demo', name: 'DCIM' }] }), 'application/json');
+  if (p === '/api/config') return send(200, JSON.stringify({ seekStep: 5, longPressRate: 2, autoPlayNext: true }), 'application/json');
   if (p === '/api/list') return send(200, JSON.stringify({ lib: 'demo', libName: 'DCIM', path: url.searchParams.get('path') || '', items: ITEMS }), 'application/json');
+  if (p === '/api/videos') {
+    return send(200, JSON.stringify({
+      groups: [{ name: '当前目录', items: [{ name: 'trip.mp4', path: 'trip.mp4', size: 128 * 1024 * 1024 }] }]
+    }), 'application/json');
+  }
   if (p === '/api/subtitle') return send(404, 'no subtitle');
   if (p === '/api/thumb') return send(200, Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001','hex'), 'image/png');
 
-  let file = p === '/' ? 'index.html' : p.replace(/^\//, '');
-  file = path.basename(file);
-  const full = path.join(WEB, file);
-  if (fs.existsSync(full)) {
+  const rel = p === '/' ? 'index.html' : decodeURIComponent(p).replace(/^\/+/, '');
+  const full = path.resolve(WEB, rel);
+  if (full.startsWith(WEB + path.sep) && fs.existsSync(full) && fs.statSync(full).isFile()) {
     return send(200, fs.readFileSync(full), MIME[path.extname(full)] || 'application/octet-stream');
   }
   send(404, 'not found');

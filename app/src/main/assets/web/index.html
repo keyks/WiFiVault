@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>WiFiVault</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css?v=122">
+<link rel="stylesheet" href="/vendor/plyr/plyr.css?v=385">
+<link rel="stylesheet" href="/app.css?v=130">
 </head>
 <body>
 
@@ -51,29 +52,21 @@
   </div>
 </div>
 
-<!-- 视频播放器 -->
+<!-- 视频播放器：控件由本地内置的 Plyr 提供，选集 / 关闭等使用轻量覆盖层 -->
 <div id="player" class="overlay hidden">
-  <video id="video" playsinline webkit-playsinline x5-playsinline="true"
+  <video id="video" controls playsinline webkit-playsinline x5-playsinline="true"
     x5-video-player-type="h5-page" x5-video-player-fullscreen="false"
     disablepictureinpicture preload="metadata"></video>
 
-  <!-- 原生控件模式：仅保留系统不提供的倍速 / 字幕 / 模式切换 -->
-  <div id="nativeBar" class="native-bar hidden">
-    <button class="icon-btn" id="nvClose" title="关闭 (Esc)">关闭</button>
-    <span id="nvTitle" class="v-title"></span>
-    <button class="icon-btn" id="nvList" title="选择剧集">选集</button>
-    <select id="nvRate" class="mini-select" title="倍速">
-      <option value="0.5">0.5x</option>
-      <option value="0.75">0.75x</option>
-      <option value="1" selected>1.0x</option>
-      <option value="1.25">1.25x</option>
-      <option value="1.5">1.5x</option>
-      <option value="2">2.0x</option>
-      <option value="3">3.0x</option>
-    </select>
-    <button class="icon-btn" id="nvSub" title="字幕">CC</button>
-    <button class="icon-btn" id="nvFull" title="全屏 (F)">⛶</button>
-    <button class="icon-btn" id="nvMode" title="播放器显示模式">模式·自动</button>
+  <div class="player-topbar" id="playerTopbar">
+    <button class="pt-btn pt-back" id="vClose" title="关闭 (Esc)" aria-label="关闭">‹</button>
+    <div class="pt-group">
+      <button class="pt-btn" id="vPrev" title="上一个视频 ( [ )" aria-label="上一个视频">⏮</button>
+      <button class="pt-btn" id="vNext" title="下一个视频 ( ] )" aria-label="下一个视频">⏭</button>
+    </div>
+    <span class="v-title" id="vTitle"></span>
+    <button class="pt-btn" id="vSub" title="字幕" aria-label="字幕">CC</button>
+    <button class="pt-btn pt-list" id="vfList" title="播放目录" aria-label="播放目录">选集</button>
   </div>
 
   <!-- 视频无法解码 / 网络失败时的兜底 -->
@@ -89,18 +82,7 @@
     </div>
   </div>
 
-  <div class="spinner hidden" id="vSpinner"></div>
   <div class="hint hidden" id="hint"></div>
-
-  <!-- 左下角：切换视频 -->
-  <div class="float-left">
-    <button class="float-btn" id="vfPrev" title="上一个视频 ( [ )">⏮</button>
-    <button class="float-btn wide" id="vfSwitch" title="切换视频">⇄ 切换视频</button>
-    <button class="float-btn" id="vfNext" title="下一个视频 ( ] )">⏭</button>
-  </div>
-
-  <!-- 右下角：播放目录 -->
-  <button class="float-btn float-right" id="vfList" title="播放目录（可切换主目录与子目录里的视频）">☰ 播放目录</button>
 
   <!-- 播放目录抽屉 -->
   <div id="plPanel" class="pl-panel hidden">
@@ -109,46 +91,6 @@
       <button class="icon-btn" id="plClose" title="收起">收起</button>
     </div>
     <div class="pl-body" id="plBody"></div>
-  </div>
-
-  <div class="ctrl" id="ctrl">
-    <div class="ctrl-top">
-      <span id="vTitle" class="v-title"></span>
-      <div class="ctrl-top-actions">
-        <button class="icon-btn" id="vMode" title="播放器显示模式">模式·自动</button>
-        <button class="icon-btn" id="vClose" title="关闭 (Esc)">关闭</button>
-      </div>
-    </div>
-
-    <div class="seek-row">
-      <span id="vCur" class="time">0:00</span>
-      <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1">
-      <span id="vDur" class="time">0:00</span>
-    </div>
-
-    <div class="ctrl-bottom">
-      <button class="icon-btn" id="vPrev" title="上一个">⏮</button>
-      <button class="icon-btn play" id="vPlay" title="播放/暂停 (空格)">▶</button>
-      <button class="icon-btn" id="vNext" title="下一个">⏭</button>
-      <button class="icon-btn jump" id="vBack" title="快退">«5s</button>
-      <button class="icon-btn jump" id="vFwd" title="快进">5s»</button>
-      <span class="spacer"></span>
-      <button class="icon-btn" id="vVolDown" title="音量 -">🔉</button>
-      <input id="vVol" class="vol" type="range" min="0" max="1" step="0.05" value="1">
-      <button class="icon-btn" id="vVolUp" title="音量 +">🔊</button>
-      <button class="icon-btn" id="vMute" title="静音 (M)">🔇</button>
-      <select id="vRate" class="mini-select" title="倍速">
-        <option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option>
-        <option value="1" selected>1.0x</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2">2.0x</option>
-        <option value="3">3.0x</option>
-      </select>
-      <button class="icon-btn" id="vSub" title="字幕">CC</button>
-      <button class="icon-btn" id="vFull" title="全屏 (F)">⛶</button>
-    </div>
   </div>
 </div>
 
@@ -189,6 +131,7 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="/app.js?v=122"></script>
+<script src="/vendor/plyr/plyr.polyfilled.min.js?v=385"></script>
+<script src="/app.js?v=130"></script>
 </body>
 </html>

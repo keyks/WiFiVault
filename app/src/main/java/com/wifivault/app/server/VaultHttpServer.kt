@@ -218,9 +218,10 @@ class VaultHttpServer(
 
             else -> {
                 val name = path.trimStart('/')
+                val nested = name.startsWith("vendor/plyr/")
                 val isStatic = name.isNotEmpty() &&
-                    !name.contains('/') &&
                     !name.contains("..") &&
+                    (!name.contains('/') || nested) &&
                     name.substringAfterLast('.') in STATIC_EXT
                 if (isStatic) serveAsset(out, name, method, cacheable = true) else notFound(out)
             }
@@ -274,7 +275,6 @@ class VaultHttpServer(
             .put("seekStep", settings.seekStep)
             .put("longPressRate", settings.longPressRate.toDouble())
             .put("autoPlayNext", settings.autoPlayNext)
-            .put("playerMode", settings.playerMode)
         respondBytes(out, 200, "OK", json.toString().toByteArray(), jsonType, noStore = true)
         return false
     }

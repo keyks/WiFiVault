@@ -43,18 +43,6 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_PLAY_NEXT, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_PLAY_NEXT, value).apply()
 
-    /**
-     * 网页播放器的显示模式：
-     * auto 按浏览器/机型自动选择，full 完整控件，compact 精简控件，native 使用浏览器原生控件。
-     */
-    var playerMode: String
-        get() = prefs.getString(KEY_PLAYER_MODE, PLAYER_MODE_AUTO)
-            ?.takeIf { it in PLAYER_MODES }
-            ?: PLAYER_MODE_AUTO
-        set(value) = prefs.edit()
-            .putString(KEY_PLAYER_MODE, value.takeIf { it in PLAYER_MODES } ?: PLAYER_MODE_AUTO)
-            .apply()
-
     var lastRunning: Boolean
         get() = prefs.getBoolean(KEY_LAST_RUNNING, false)
         set(value) = prefs.edit().putBoolean(KEY_LAST_RUNNING, value).apply()
@@ -111,17 +99,6 @@ class Settings(context: Context) {
         const val DEFAULT_SEEK_STEP = 5
         const val DEFAULT_LONG_PRESS_RATE = 2.0f
 
-        const val PLAYER_MODE_AUTO = "auto"
-        const val PLAYER_MODE_FULL = "full"
-        const val PLAYER_MODE_COMPACT = "compact"
-        const val PLAYER_MODE_NATIVE = "native"
-        val PLAYER_MODES = setOf(
-            PLAYER_MODE_AUTO,
-            PLAYER_MODE_FULL,
-            PLAYER_MODE_COMPACT,
-            PLAYER_MODE_NATIVE
-        )
-
         private const val KEY_PORT = "port"
         private const val KEY_PIN = "pin"
         private const val KEY_LAST_RUNNING = "last_running"
@@ -129,6 +106,5 @@ class Settings(context: Context) {
         private const val KEY_SEEK_STEP = "seek_step"
         private const val KEY_LONG_PRESS_RATE = "long_press_rate"
         private const val KEY_AUTO_PLAY_NEXT = "auto_play_next"
-        private const val KEY_PLAYER_MODE = "player_mode"
     }
 }

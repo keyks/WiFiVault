@@ -14,11 +14,7 @@
   };
 
   // 播放器配置，由手机端设置下发（/api/config）
-  var cfg = { seekStep: 5, longPressRate: 2, autoPlayNext: true, playerMode: 'auto' };
-
-  var MODE_LABELS = { auto: '自动', full: '完整', compact: '精简', native: '原生' };
-  var MODE_ORDER = ['auto', 'full', 'compact', 'native'];
-  var modeOverride = null;
+  var cfg = { seekStep: 5, longPressRate: 2, autoPlayNext: true };
 
   var ICONS = {
     dir: '\u{1F4C1}', image: '\u{1F5BC}', video: '\u{1F3AC}',
@@ -265,7 +261,9 @@
   var plGroups = [], plOpen = false;
   var playerEl = $('player');
   var gesture = null, longPressTimer = null, hintTimer = null;
-  var fastPrevRate = 1, mouseLong = false;
+  var fastPrevRate = 1, mouseLong = false, suppressUntil = 0;
+  var plyr = null, plyrTried = false, subtitleUrl = null, subtitleToken = 0;
+  var subtitleWanted = true;
 
   // 尽量阻止部分国产浏览器/X5 内核把视频接管为原生浮层播放器。
   video.setAttribute('playsinline', '');
@@ -279,11 +277,11 @@
 
   function hidePlayerError() {
     $('playerError').classList.add('hidden');
-    $('vSpinner').classList.add('hidden');
+    playerEl.classList.remove('has-error');
   }
 
   function showPlayerError() {
-    if ($('player').classList.contains('hidden')) return;
+    if (playerEl.classList.contains('hidden')) return;
     var code = video.error ? video.error.code : 0;
     var message;
     if (code === 4) {
@@ -297,7 +295,8 @@
     }
     $('peMsg').textContent = message;
     $('playerError').classList.remove('hidden');
-    $('vSpinner').classList.add('hidden');
+    playerEl.classList.add('has-error');
+    showChrome();
   }
 
   function openCurrentExternal() {
@@ -306,107 +305,134 @@
     window.open(rawUrl(it.path), '_blank');
   }
 
-  function isNativeMode() { return playerEl.dataset.mode === 'native'; }
-
-  /** 手机端不再绘制自定义播放器，统一交给系统原生 <video controls>。 */
-  function isMobilePlayer() {
-    var ua = navigator.userAgent || '';
-    if (/Android|iPhone|iPod|iPad|Mobile/i.test(ua)) return true;
-    return !!(window.matchMedia &&
-      window.matchMedia('(pointer: coarse)').matches &&
-      window.innerWidth <= 900);
+  function showChrome() {
+    var bar = $('playerTopbar');
+    if (!bar || playerEl.classList.contains('hidden')) return;
+    bar.classList.remove('fade');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () {
+      if (!video.paused && !plOpen && !video.controls) bar.classList.add('fade');
+    }, 2800);
   }
 
-  /** 风险机型 / 内置 WebView / 社交 App：系统媒体控件更容易压在页面上。 */
-  function riskyPlayerHost() {
-    var ua = navigator.userAgent || '';
-    if (/(^|[;\s])wv([;\s)]|$)|Version\/4\.0/i.test(ua)) return true;
-    return /MIUI|HyperOS|ColorOS|EMUI|HarmonyOS|HuaweiBrowser|MQQBrowser|UCBrowser|Quark|baidubrowser|MicroMessenger|WeChat|QQ\//i.test(ua);
+  function hideChrome() {
+    clearTimeout(hideTimer);
+    if (!video.paused && !plOpen) $('playerTopbar').classList.add('fade');
   }
 
-  function requestedMode() {
-    return modeOverride || cfg.playerMode || 'auto';
+  function plyrOptions() {
+    return {
+      controls: [
+        'play-large', 'rewind', 'play', 'fast-forward', 'progress',
+        'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'
+      ],
+      settings: ['speed'],
+      speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2, 3] },
+      seekTime: cfg.seekStep,
+      iconUrl: '/vendor/plyr/plyr.svg?v=385',
+      blankVideo: '',
+      i18n: {
+        restart: '重新播放',
+        rewind: '快退 {seektime} 秒',
+        play: '播放',
+        pause: '暂停',
+        fastForward: '快进 {seektime} 秒',
+        seek: '拖动进度',
+        played: '已播放',
+        buffered: '已缓冲',
+        currentTime: '当前时间',
+        duration: '总时长',
+        volume: '音量',
+        mute: '静音',
+        unmute: '取消静音',
+        enableCaptions: '开启字幕',
+        disableCaptions: '关闭字幕',
+        enterFullscreen: '全屏',
+        exitFullscreen: '退出全屏',
+        frameTitle: '播放器：{title}',
+        captions: '字幕',
+        settings: '设置',
+        menuBack: '返回上一级',
+        speed: '倍速',
+        normal: '正常',
+        quality: '画质',
+        loop: '循环',
+        start: '开始',
+        end: '结束',
+        all: '全部',
+        reset: '重置',
+        disabled: '关闭'
+      },
+      tooltips: { controls: true, seek: true },
+      keyboard: { focused: true, global: false },
+      fullscreen: { enabled: true, fallback: true, iosNative: true, container: '#player' },
+      storage: { enabled: true, key: 'wifivault-plyr' },
+      clickToPlay: false,
+      hideControls: true,
+      resetOnEnd: false,
+      displayDuration: true
+    };
   }
 
-  function resolvedMode() {
-    // 手机端恢复内置 H5 播放器：系统播放器/浏览器嗅探浮层会遮挡选集并干扰播放。
-    if (isMobilePlayer()) return 'full';
-    var mode = requestedMode();
-    if (mode === 'auto') mode = riskyPlayerHost() ? 'compact' : 'full';
-    return MODE_LABELS[mode] && mode !== 'auto' ? mode : 'full';
-  }
-
-  function applyPlayerMode() {
-    var requested = requestedMode();
-    var mode = resolvedMode();
-    var mobile = isMobilePlayer();
-
-    playerEl.dataset.mode = mode;
-    playerEl.classList.toggle('mobile-player', mobile);
-    video.controls = mode === 'native';
-    $('nativeBar').classList.toggle('hidden', mode !== 'native');
-    $('nvList').classList.remove('hidden');
-    $('nvRate').classList.toggle('hidden', mobile);
-    $('nvFull').classList.toggle('hidden', mobile);
-    $('nvMode').classList.toggle('hidden', mobile);
-    $('vMode').classList.toggle('hidden', mobile);
-    if (mode === 'native') {
-      video.setAttribute('controlslist', 'nodownload nofullscreen');
-      $('nvTitle').textContent = $('vTitle').textContent;
-      $('nvRate').value = $('vRate').value;
-    } else {
-      video.removeAttribute('controlslist');
-    }
-    if (mode !== 'full') closePlaylist();
-
-    var base = MODE_LABELS[requested] || MODE_LABELS.auto;
-    var actual = MODE_LABELS[mode];
-    $('vMode').textContent = requested === 'auto' ? base + '→' + actual : base;
-    $('nvMode').textContent = requested === 'auto' ? base + '→' + actual : base;
-    $('vMode').title = '播放器显示模式：当前 ' + actual + '，点击切换';
-    $('nvMode').title = $('vMode').title;
-    if (mode !== 'native') autoHide();
-    syncPlayerLayout();
-  }
-
-  /** 浮动按钮贴在控制条上方，避免遮住标题和进度条。 */
-  function syncPlayerLayout() {
-    var ctrl = $('ctrl');
-    playerEl.style.setProperty('--ctrl-h', (ctrl ? ctrl.offsetHeight : 0) + 'px');
-  }
-
-  window.addEventListener('resize', syncPlayerLayout);
-  document.addEventListener('fullscreenchange', syncPlayerLayout);
-
-  function cyclePlayerMode() {
-    if (isMobilePlayer()) {
-      toast('手机端使用内置播放器，请在「播放目录」中切换剧集');
+  /** 初始化本地 Plyr；失败时退回浏览器原生控件，保证仍能播放。 */
+  function initPlyr() {
+    if (plyr || plyrTried) return;
+    plyrTried = true;
+    if (!window.Plyr) {
+      video.controls = true;
+      playerEl.classList.add('native-fallback');
+      toast('播放器组件加载失败，已切换为系统控件');
       return;
     }
-    var cur = requestedMode();
-    var idx = MODE_ORDER.indexOf(cur);
-    modeOverride = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
-    applyPlayerMode();
-    toast('播放器模式：' + MODE_LABELS[modeOverride] + (modeOverride === 'auto' ? '（自动选择）' : ''));
+    try {
+      plyr = new window.Plyr(video, plyrOptions());
+      playerEl.classList.add('plyr-ready');
+      plyr.on('play', showChrome);
+      plyr.on('pause', showChrome);
+      plyr.on('controlsshown', showChrome);
+      plyr.on('controlshidden', hideChrome);
+      plyr.on('enterfullscreen', showChrome);
+      plyr.on('exitfullscreen', showChrome);
+    } catch (e) {
+      plyr = null;
+      video.controls = true;
+      playerEl.classList.add('native-fallback');
+      toast('播放器初始化失败，已切换为系统控件');
+    }
   }
 
-  function setPlaybackRate(value) {
-    video.playbackRate = parseFloat(value);
-    $('vRate').value = String(value);
-    $('nvRate').value = String(value);
+  function updateSubtitleButton() {
+    var t = video.textTracks[0];
+    var on = !!(plyr && plyr.captions && plyr.captions.active);
+    if (!plyr) on = !!(t && t.mode === 'showing');
+    var btn = $('vSub');
+    btn.classList.toggle('active', on);
+    btn.title = on ? '关闭字幕' : '字幕';
   }
 
   function toggleSubtitle() {
     var t = video.textTracks[0];
     if (!t) { toast('该视频没有找到同名字幕'); return; }
+    if (plyr && plyr.toggleCaptions) {
+      plyr.toggleCaptions();
+      subtitleWanted = !!plyr.captions.active;
+      updateSubtitleButton();
+      toast(subtitleWanted ? '字幕已开启' : '字幕已关闭');
+      return;
+    }
     t.mode = t.mode === 'showing' ? 'hidden' : 'showing';
-    toast(t.mode === 'showing' ? '字幕已开启' : '字幕已关闭');
+    subtitleWanted = t.mode === 'showing';
+    updateSubtitleButton();
+    toast(subtitleWanted ? '字幕已开启' : '字幕已关闭');
   }
 
   function toggleFullscreen() {
-    var el = $('player');
+    if (plyr && plyr.fullscreen) {
+      plyr.fullscreen.toggle();
+      return;
+    }
     if (document.fullscreenElement) document.exitFullscreen();
-    else if (el.requestFullscreen) el.requestFullscreen();
+    else if (playerEl.requestFullscreen) playerEl.requestFullscreen();
     else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
   }
 
@@ -418,35 +444,36 @@
     hintTimer = setTimeout(function () { el.classList.add('hidden'); }, 1000);
   }
 
+  function isNativeFallback() {
+    return playerEl.classList.contains('native-fallback');
+  }
+
+  function currentVolume() {
+    return plyr && typeof plyr.volume === 'number' ? plyr.volume : video.volume;
+  }
+
   function setVolume(v) {
-    video.volume = clamp(v, 0, 1);
-    video.muted = video.volume === 0;
-    $('vVol').value = String(video.volume);
-    updateMute();
+    v = clamp(v, 0, 1);
+    if (plyr) plyr.volume = v;
+    else video.volume = v;
+    video.muted = v === 0;
   }
 
   function changeVolume(delta) {
-    setVolume(video.volume + delta);
-    showHint('音量 ' + Math.round(video.volume * 100) + '%');
+    setVolume(currentVolume() + delta);
+    showHint('音量 ' + Math.round(currentVolume() * 100) + '%');
   }
 
-  function updateMute() {
-    var el = $('vMute');
-    var silent = video.muted || video.volume === 0;
-    el.textContent = silent ? '\u{1F507}' : '\u{1F50A}';
-    el.classList.toggle('active', silent);
-  }
-
-  function updateSeekUi(t) {
-    if (video.duration) $('seek').value = String(Math.round(t / video.duration * 1000));
-    $('vCur').textContent = fmt(t);
+  function toggleMute() {
+    if (plyr) plyr.muted = !plyr.muted;
+    else video.muted = !video.muted;
+    showHint(video.muted ? '已静音' : '取消静音');
   }
 
   function jump(sec) {
     if (!video.duration) return;
     var t = clamp(video.currentTime + sec, 0, video.duration - 0.3);
     video.currentTime = t;
-    updateSeekUi(t);
     showHint((sec >= 0 ? '+' : '') + sec + 's   ' + fmt(t));
   }
 
@@ -466,9 +493,10 @@
     plGroups = [];
     hidePlayerError();
     $('player').classList.remove('hidden');
+    initPlyr();
     loadVideo();
-    applyPlayerMode();
     loadPlaylist();
+    showChrome();
   }
 
   // ---------------------------------------------------------------- 播放目录
@@ -568,37 +596,63 @@
     if (!it) return;
     hidePlayerError();
     $('vTitle').textContent = it.name;
-    $('nvTitle').textContent = it.name;
+    var rate = video.playbackRate || 1;
     video.src = rawUrl(it.path);
-    video.playbackRate = parseFloat($('vRate').value);
-    $('nvRate').value = $('vRate').value;
-    $('vVol').value = String(video.volume);
-    updateMute();
+    video.playbackRate = rate;
     loadSubtitle(it);
     video.play().catch(function () { /* 需要用户交互 */ });
     video.addEventListener('loadedmetadata', function onMeta() {
+      video.removeEventListener('loadedmetadata', onMeta);
+      if (vList[vIndex] !== it) return;
       var saved = parseFloat(localStorage.getItem(progressKey(it)) || '0');
       if (saved > 0 && saved < video.duration - 5) video.currentTime = saved;
-      video.removeEventListener('loadedmetadata', onMeta);
     });
-    autoHide();
+    showChrome();
   }
 
   async function loadSubtitle(it) {
+    var token = ++subtitleToken;
+    if (plyr && plyr.toggleCaptions) {
+      try { plyr.toggleCaptions(false); } catch (e) { /* ignore */ }
+    }
     Array.prototype.forEach.call(video.querySelectorAll('track'), function (t) { t.remove(); });
+    if (subtitleUrl) {
+      URL.revokeObjectURL(subtitleUrl);
+      subtitleUrl = null;
+    }
+    updateSubtitleButton();
     try {
       var res = await fetch('/api/subtitle?lib=' + encodeURIComponent(state.lib) +
         '&path=' + encodeURIComponent(it.path), { credentials: 'same-origin' });
-      if (!res.ok) return;
+      if (!res.ok || token !== subtitleToken) return;
       var text = await res.text();
-      var url = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
+      if (token !== subtitleToken) return;
+      subtitleUrl = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
       var track = document.createElement('track');
       track.kind = 'subtitles';
       track.label = '中文字幕';
       track.srclang = 'zh';
       track.default = true;
-      track.src = url;
+      track.src = subtitleUrl;
       video.appendChild(track);
+      if (!plyr) {
+        track.mode = subtitleWanted ? 'showing' : 'hidden';
+        updateSubtitleButton();
+        return;
+      }
+      if (!subtitleWanted) {
+        updateSubtitleButton();
+        return;
+      }
+      // Plyr 在初始化后才收到 track，需要等 addtrack 处理完再切换当前字幕。
+      setTimeout(function () {
+        if (token !== subtitleToken) return;
+        try {
+          plyr.currentTrack = 0;
+          plyr.toggleCaptions(true);
+        } catch (e) { /* ignore */ }
+        updateSubtitleButton();
+      }, 80);
     } catch (e) { /* 无字幕 */ }
   }
 
@@ -621,18 +675,11 @@
     saveProgress();
     closePlaylist();
     hidePlayerError();
+    if (plyr && plyr.fullscreen && plyr.fullscreen.active) plyr.fullscreen.exit();
     video.pause();
     video.removeAttribute('src');
     $('player').classList.add('hidden');
-  }
-
-  function autoHide() {
-    var ctrl = $('ctrl');
-    ctrl.classList.remove('fade');
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () {
-      if (!video.paused) ctrl.classList.add('fade');
-    }, 2800);
+    $('playerTopbar').classList.remove('fade');
   }
 
   // ---------------------------------------------------------------- 通用预览
@@ -900,16 +947,12 @@
     if (e.target === $('preview')) closePreview();
   });
 
-  // 视频控制
+  // 视频控制：Plyr 负责播放 / 进度 / 音量 / 倍速 / 全屏，覆盖层只保留选集与字幕
   $('vClose').addEventListener('click', closePlayer);
-  $('nvClose').addEventListener('click', closePlayer);
-  $('vMode').addEventListener('click', cyclePlayerMode);
-  $('nvMode').addEventListener('click', cyclePlayerMode);
-  $('vfPrev').addEventListener('click', function () { vStep(-1); });
-  $('vfNext').addEventListener('click', function () { vStep(1); });
-  $('vfSwitch').addEventListener('click', togglePlaylist);
+  $('vPrev').addEventListener('click', function () { vStep(-1); });
+  $('vNext').addEventListener('click', function () { vStep(1); });
+  $('vSub').addEventListener('click', toggleSubtitle);
   $('vfList').addEventListener('click', togglePlaylist);
-  $('nvList').addEventListener('click', togglePlaylist);
   $('plClose').addEventListener('click', closePlaylist);
   $('plBody').addEventListener('click', function (e) {
     var el = e.target.closest('.pl-item');
@@ -922,52 +965,37 @@
     video.play().catch(function () { /* ignore */ });
   });
   $('peClose').addEventListener('click', closePlayer);
-  $('vPlay').addEventListener('click', function () { video.paused ? video.play() : video.pause(); });
-  $('vPrev').addEventListener('click', function () { vStep(-1); });
-  $('vNext').addEventListener('click', function () { vStep(1); });
-  $('vBack').addEventListener('click', function () { jump(-cfg.seekStep); });
-  $('vFwd').addEventListener('click', function () { jump(cfg.seekStep); });
-  $('vRate').addEventListener('change', function (e) { setPlaybackRate(e.target.value); });
-  $('nvRate').addEventListener('change', function (e) { setPlaybackRate(e.target.value); });
-  $('vMute').addEventListener('click', function () {
-    video.muted = !video.muted;
-    updateMute();
-    showHint(video.muted ? '已静音' : '取消静音');
-  });
-  $('vVolDown').addEventListener('click', function () { changeVolume(-0.1); });
-  $('vVolUp').addEventListener('click', function () { changeVolume(0.1); });
-  $('vVol').addEventListener('input', function (e) {
-    video.volume = parseFloat(e.target.value);
-    video.muted = video.volume === 0;
-    updateMute();
-  });
-  $('vSub').addEventListener('click', toggleSubtitle);
-  $('nvSub').addEventListener('click', toggleSubtitle);
-  $('vFull').addEventListener('click', toggleFullscreen);
-  $('nvFull').addEventListener('click', toggleFullscreen);
-  $('player').addEventListener('mousemove', autoHide);
+  $('player').addEventListener('mousemove', showChrome);
+  // 捕获阶段拦截长按结束后浏览器补发的 click，避免 Plyr / 自定义逻辑再次暂停。
   $('player').addEventListener('click', function (e) {
-    if (isNativeMode()) return;
-    autoHide();
-    if (mouseLong) { mouseLong = false; return; }
-    if (e.target === video) { video.paused ? video.play() : video.pause(); }
+    if (Date.now() < suppressUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+  $('player').addEventListener('click', function (e) {
+    showChrome();
+    if (isNativeFallback() || Date.now() < suppressUntil) return;
+    if (e.target.closest('.player-topbar, .plyr__controls, .plyr__menu, .plyr__control, .pl-panel, .player-error')) return;
+    if (e.target.closest('.plyr, .plyr__video-wrapper, #video')) {
+      video.paused ? video.play() : video.pause();
+    }
   });
 
   // 触屏手势：中部左右滑拖进度、右侧上下滑调音量、中央长按倍速
   playerEl.addEventListener('touchstart', function (e) {
-    if (isNativeMode()) return;
-    if (e.target.closest('.ctrl') || e.target.closest('.native-bar') ||
-        e.target.closest('.player-error')) return;
+    if (isNativeFallback()) return;
+    if (e.target.closest('.player-topbar, .plyr__controls, .plyr__menu, .plyr__control, .pl-panel, .player-error')) return;
     if (e.touches.length !== 1) { gesture = null; return; }
-    autoHide();
+    showChrome();
     var t = e.touches[0];
     var box = playerEl.getBoundingClientRect();
     gesture = {
       x: t.clientX, y: t.clientY,
       base: video.currentTime || 0,
-      vol: video.volume,
+      vol: currentVolume(),
       zone: t.clientX - box.left > box.width * 0.72 ? 'right' : 'center',
-      mode: null, moved: false, fast: false, lastApply: 0
+      mode: null, moved: false, fast: false, lastApply: 0, lastTarget: null
     };
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(function () {
@@ -979,7 +1007,7 @@
   }, { passive: true });
 
   playerEl.addEventListener('touchmove', function (e) {
-    if (isNativeMode() || !gesture || e.touches.length !== 1) return;
+    if (isNativeFallback() || !gesture || e.touches.length !== 1) return;
     var t = e.touches[0];
     var dx = t.clientX - gesture.x;
     var dy = t.clientY - gesture.y;
@@ -1004,7 +1032,7 @@
       showHint('音量 ' + Math.round(v * 100) + '%');
     } else if (video.duration) {
       var target = clamp(gesture.base + dx / box.width * cfg.seekStep * 40, 0, video.duration - 0.3);
-      updateSeekUi(target);
+      gesture.lastTarget = target;
       var now = Date.now();
       if (now - gesture.lastApply > 120) { video.currentTime = target; gesture.lastApply = now; }
       var diff = Math.round(target - gesture.base);
@@ -1016,33 +1044,44 @@
   function endGesture() {
     clearTimeout(longPressTimer);
     if (!gesture) return;
-    if (gesture.mode === 'seek' && video.duration) {
-      video.currentTime = clamp(parseFloat($('seek').value) / 1000 * video.duration, 0, video.duration - 0.3);
+    if (gesture.mode === 'seek' && gesture.lastTarget != null && video.duration) {
+      video.currentTime = clamp(gesture.lastTarget, 0, video.duration - 0.3);
     }
     if (gesture.fast) stopFast();
+    var consumed = gesture.moved || gesture.fast;
     gesture = null;
-    autoHide();
+    if (consumed) suppressUntil = Date.now() + 400;
+    showChrome();
   }
 
   playerEl.addEventListener('touchend', endGesture);
   playerEl.addEventListener('touchcancel', endGesture);
 
-  // 桌面端：长按画面启用倍速
-  video.addEventListener('mousedown', function (e) {
-    if (e.button !== 0 || isNativeMode()) return;
+  // 桌面端：长按画面启用倍速（Plyr 的 poster 覆盖层也会接住鼠标事件）
+  playerEl.addEventListener('mousedown', function (e) {
+    if (e.button !== 0 || isNativeFallback()) return;
+    if (e.target.closest('.player-topbar, .plyr__controls, .plyr__menu, .plyr__control, .pl-panel, .player-error')) return;
     clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(function () { mouseLong = true; startFast(); }, 350);
+    longPressTimer = setTimeout(function () {
+      if (!video.paused) {
+        mouseLong = true;
+        startFast();
+      }
+    }, 350);
   });
   window.addEventListener('mouseup', function () {
     clearTimeout(longPressTimer);
-    if (mouseLong) { stopFast(); mouseLong = false; }
+    if (mouseLong) {
+      stopFast();
+      mouseLong = false;
+      suppressUntil = Date.now() + 400;
+    }
   });
 
   video.addEventListener('error', showPlayerError);
-  video.addEventListener('playing', function () { $('vSpinner').classList.add('hidden'); hidePlayerError(); });
-  video.addEventListener('play', function () { $('vPlay').textContent = '⏸'; autoHide(); });
-  video.addEventListener('pause', function () { $('vPlay').textContent = '▶'; $('ctrl').classList.remove('fade'); });
-  video.addEventListener('waiting', function () { $('vSpinner').classList.remove('hidden'); });
+  video.addEventListener('playing', function () { hidePlayerError(); showChrome(); });
+  video.addEventListener('play', showChrome);
+  video.addEventListener('pause', showChrome);
   video.addEventListener('ended', function () {
     if (!cfg.autoPlayNext) return;
     if (vIndex < vList.length - 1) {
@@ -1055,14 +1094,7 @@
 
   video.addEventListener('timeupdate', function () {
     if (!video.duration) return;
-    $('seek').value = String(Math.round(video.currentTime / video.duration * 1000));
-    $('vCur').textContent = fmt(video.currentTime);
     if (Math.floor(video.currentTime) % 5 === 0) saveProgress();
-  });
-  video.addEventListener('loadedmetadata', function () { $('vDur').textContent = fmt(video.duration); });
-  $('seek').addEventListener('input', function (e) {
-    if (!video.duration) return;
-    video.currentTime = parseFloat(e.target.value) / 1000 * video.duration;
   });
 
   $('aClose').addEventListener('click', function () {
@@ -1079,8 +1111,14 @@
     if (e.key === 'Escape') {
       if (plOpen) closePlaylist();
       else if (pvOpen) closePreview();
-      else if (pOpen) closePlayer();
-      else if (lbOpen) closeLb();
+      else if (pOpen) {
+        if (document.fullscreenElement) return;
+        if (plyr && plyr.fullscreen && plyr.fullscreen.active) {
+          plyr.fullscreen.exit();
+          return;
+        }
+        closePlayer();
+      } else if (lbOpen) closeLb();
       return;
     }
     if (pvOpen) {
@@ -1094,13 +1132,16 @@
       return;
     }
     if (pOpen) {
+      if (e.target && e.target.closest &&
+          e.target.closest('.plyr__controls, .plyr__menu, input, select, textarea')) return;
       if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
       if (e.key === 'ArrowLeft') { e.preventDefault(); jump(-cfg.seekStep); }
       if (e.key === 'ArrowRight') { e.preventDefault(); jump(cfg.seekStep); }
       if (e.key === 'ArrowUp') { e.preventDefault(); changeVolume(0.1); }
       if (e.key === 'ArrowDown') { e.preventDefault(); changeVolume(-0.1); }
-      if (e.key === 'f' || e.key === 'F') $('vFull').click();
-      if (e.key === 'm' || e.key === 'M') $('vMute').click();
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+      if (e.key === 'm' || e.key === 'M') toggleMute();
+      if (e.key === 'c' || e.key === 'C') toggleSubtitle();
       if (e.key === '[') vStep(-1);
       if (e.key === ']') vStep(1);
       if (e.key === 'l' || e.key === 'L') togglePlaylist();
@@ -1147,19 +1188,8 @@
         if (d.seekStep) cfg.seekStep = clamp(parseInt(d.seekStep, 10) || 5, 1, 120);
         if (d.longPressRate) cfg.longPressRate = clamp(parseFloat(d.longPressRate) || 2, 1.25, 4);
         if (typeof d.autoPlayNext === 'boolean') cfg.autoPlayNext = d.autoPlayNext;
-        if (typeof d.playerMode === 'string' && MODE_LABELS[d.playerMode]) cfg.playerMode = d.playerMode;
       }
     } catch (e) { /* 保持默认值 */ }
-    applyConfig();
-  }
-
-  function applyConfig() {
-    var back = $('vBack'), fwd = $('vFwd');
-    back.textContent = '«' + cfg.seekStep + 's';
-    fwd.textContent = cfg.seekStep + 's»';
-    back.title = '快退 ' + cfg.seekStep + ' 秒（←）';
-    fwd.title = '快进 ' + cfg.seekStep + ' 秒（→）';
-    applyPlayerMode();
   }
 
   async function boot() {

@@ -55,7 +55,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -767,7 +766,7 @@ private fun QuickSettingsCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "端口 ${settings.port} · $pin · 快进 ${settings.seekStep}s · ${playerModeLabel(settings.playerMode)}",
+                    text = "端口 ${settings.port} · $pin · 快进 ${settings.seekStep}s · 连播${if (settings.autoPlayNext) "开" else "关"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -800,7 +799,6 @@ private fun SettingsScreen(
     var seekText by remember { mutableStateOf(settings.seekStep.toString()) }
     var rateText by remember { mutableStateOf(settings.longPressRate.toString()) }
     var autoNext by remember { mutableStateOf(settings.autoPlayNext) }
-    var playerMode by remember { mutableStateOf(settings.playerMode) }
     var showGuide by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -916,33 +914,7 @@ private fun SettingsScreen(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    HintLine("桌面播放器的快进按钮与左右滑动灵敏度都使用此数值。")
-
-                    Spacer(Modifier.height(18.dp))
-                    Text(
-                        text = "桌面端播放器模式",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PLAYER_MODE_OPTIONS.forEach { (value, label) ->
-                            FilterChip(
-                                selected = playerMode == value,
-                                onClick = {
-                                    playerMode = value
-                                    settings.playerMode = value
-                                    toast(context, "已切换为$label，桌面观看端刷新后生效")
-                                },
-                                label = { Text(label) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    HintLine("手机观看端使用内置 H5 播放器；桌面 / 平板可选择自动、完整、精简或原生控件。")
+                    HintLine("播放器的快进按钮与左右滑动灵敏度都使用此数值。")
                 }
             }
 
@@ -1120,20 +1092,6 @@ private fun HintLine(text: String) {
     }
 }
 
-private val PLAYER_MODE_OPTIONS = listOf(
-    Settings.PLAYER_MODE_AUTO to "自动",
-    Settings.PLAYER_MODE_FULL to "完整",
-    Settings.PLAYER_MODE_COMPACT to "精简",
-    Settings.PLAYER_MODE_NATIVE to "原生"
-)
-
-private fun playerModeLabel(mode: String): String = when (mode) {
-    Settings.PLAYER_MODE_FULL -> "完整模式"
-    Settings.PLAYER_MODE_COMPACT -> "精简模式"
-    Settings.PLAYER_MODE_NATIVE -> "原生控件"
-    else -> "自动模式"
-}
-
 private fun libraryPathLabel(uri: Uri): String = runCatching {
     val decoded = Uri.decode(uri.toString())
     val tree = decoded.substringAfter("/tree/", "")
@@ -1145,12 +1103,11 @@ private const val GUIDE_TEXT =
         "· 智能电视：用电视自带浏览器打开同一地址，可用遥控器操作\n" +
         "· 完全离线：界面与播放器都内置在 App 内，断网也能正常看\n" +
         "· 视频支持拖动进度（断点续传），图片支持缩放浏览\n" +
-        "· 手机端观看：上下滑动调音量，左右滑动拖进度，长按屏幕倍速；底部「播放目录」选集，播完自动下一集\n" +
+        "· 播放器使用本地内置的 Plyr：进度、音量、倍速、字幕、全屏都在底部控制条\n" +
+        "· 手机端观看：上下滑动调音量，左右滑动拖进度，长按屏幕倍速；顶部「选集」切换视频\n" +
         "· 电脑端观看：键盘 ↑ ↓ 调音量，← → 快退快进，长按画面倍速\n" +
-        "· 桌面播放器左下角可切换上一个 / 下一个，右下角「播放目录」列出主目录与子目录的视频，点一下即可接着播\n" +
-        "· 视频播完会自动连播目录里的下一个，可在上方开关里关闭\n" +
+        "· 顶部「选集」列出主目录与子目录的视频，点一下即可接着播；播完自动下一集\n" +
         "· 文档、PDF、文本、代码、压缩包等文件点击后直接预览，不能预览的格式可下载\n" +
-        "· 播放器显示模式：桌面端自动 / 完整 / 精简 / 原生；手机端固定使用内置 H5 播放器\n" +
         "· 手机保持本应用在前台或后台运行，观看端才能读到内容"
 
 private fun sanitizeRate(input: String): String {
