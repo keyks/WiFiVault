@@ -1,7 +1,7 @@
 {
-  "versionCode": 4,
-  "versionName": "1.2.1",
-  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.2.1/WiFiVault-1.2.1.apk",
-  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.2.1",
-  "notes": "手机观看端改为系统原生播放器，支持选集与自动下一集。"
+  "versionCode": 5,
+  "versionName": "1.2.2",
+  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.2.2/WiFiVault-1.2.2.apk",
+  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.2.2",
+  "notes": "修复手机端视频黑屏，恢复内置 H5 播放器、选集抽屉与播放失败提示。"
 }
