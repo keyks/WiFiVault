@@ -1,7 +1,7 @@
 {
-  "versionCode": 5,
-  "versionName": "1.2.2",
-  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.2.2/WiFiVault-1.2.2.apk",
-  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.2.2",
-  "notes": "修复手机端视频黑屏，恢复内置 H5 播放器、选集抽屉与播放失败提示。"
+  "versionCode": 6,
+  "versionName": "1.3.0",
+  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.3.0/WiFiVault-1.3.0.apk",
+  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.3.0",
+  "notes": "播放器升级为 Plyr，统一控制条，支持选集、字幕、倍速与全屏。"
 }
