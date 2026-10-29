@@ -267,7 +267,44 @@
   var gesture = null, longPressTimer = null, hintTimer = null;
   var fastPrevRate = 1, mouseLong = false;
 
+  // 尽量阻止部分国产浏览器/X5 内核把视频接管为原生浮层播放器。
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', 'true');
+  video.setAttribute('x5-playsinline', 'true');
+  video.setAttribute('x5-video-player-type', 'h5-page');
+  video.setAttribute('x5-video-player-fullscreen', 'false');
+  if ('disablePictureInPicture' in video) video.disablePictureInPicture = true;
+
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function hidePlayerError() {
+    $('playerError').classList.add('hidden');
+    $('vSpinner').classList.add('hidden');
+  }
+
+  function showPlayerError() {
+    if ($('player').classList.contains('hidden')) return;
+    var code = video.error ? video.error.code : 0;
+    var message;
+    if (code === 4) {
+      message = '浏览器不支持该视频的编码或容器格式（常见于 HEVC / MKV）。可以尝试用系统播放器打开。';
+    } else if (code === 3) {
+      message = '视频解码失败，可能是编码格式不受支持。可以尝试用系统播放器打开。';
+    } else if (code === 2) {
+      message = '网络中断或读取文件失败，请确认手机端共享服务仍在运行。';
+    } else {
+      message = '视频加载失败，请重试或用系统播放器打开。';
+    }
+    $('peMsg').textContent = message;
+    $('playerError').classList.remove('hidden');
+    $('vSpinner').classList.add('hidden');
+  }
+
+  function openCurrentExternal() {
+    var it = vList[vIndex];
+    if (!it) return;
+    window.open(rawUrl(it.path), '_blank');
+  }
 
   function isNativeMode() { return playerEl.dataset.mode === 'native'; }
 
@@ -292,7 +329,8 @@
   }
 
   function resolvedMode() {
-    if (isMobilePlayer()) return 'native';
+    // 手机端恢复内置 H5 播放器：系统播放器/浏览器嗅探浮层会遮挡选集并干扰播放。
+    if (isMobilePlayer()) return 'full';
     var mode = requestedMode();
     if (mode === 'auto') mode = riskyPlayerHost() ? 'compact' : 'full';
     return MODE_LABELS[mode] && mode !== 'auto' ? mode : 'full';
@@ -304,15 +342,16 @@
     var mobile = isMobilePlayer();
 
     playerEl.dataset.mode = mode;
+    playerEl.classList.toggle('mobile-player', mobile);
     video.controls = mode === 'native';
     $('nativeBar').classList.toggle('hidden', mode !== 'native');
     $('nvList').classList.remove('hidden');
     $('nvRate').classList.toggle('hidden', mobile);
     $('nvFull').classList.toggle('hidden', mobile);
     $('nvMode').classList.toggle('hidden', mobile);
+    $('vMode').classList.toggle('hidden', mobile);
     if (mode === 'native') {
-      // 手机上保留系统全屏按钮；桌面原生模式用自定义全屏按钮。
-      video.setAttribute('controlslist', mobile ? 'nodownload' : 'nodownload nofullscreen');
+      video.setAttribute('controlslist', 'nodownload nofullscreen');
       $('nvTitle').textContent = $('vTitle').textContent;
       $('nvRate').value = $('vRate').value;
     } else {
@@ -341,7 +380,7 @@
 
   function cyclePlayerMode() {
     if (isMobilePlayer()) {
-      toast('手机端使用系统播放器，请在「选集」中切换剧集');
+      toast('手机端使用内置播放器，请在「播放目录」中切换剧集');
       return;
     }
     var cur = requestedMode();
@@ -425,6 +464,7 @@
   function openPlayer(list, index) {
     vList = list.slice(); vIndex = index;
     plGroups = [];
+    hidePlayerError();
     $('player').classList.remove('hidden');
     loadVideo();
     applyPlayerMode();
@@ -526,6 +566,7 @@
   function loadVideo() {
     var it = vList[vIndex];
     if (!it) return;
+    hidePlayerError();
     $('vTitle').textContent = it.name;
     $('nvTitle').textContent = it.name;
     video.src = rawUrl(it.path);
@@ -579,6 +620,7 @@
   function closePlayer() {
     saveProgress();
     closePlaylist();
+    hidePlayerError();
     video.pause();
     video.removeAttribute('src');
     $('player').classList.add('hidden');
@@ -873,6 +915,13 @@
     var el = e.target.closest('.pl-item');
     if (el) playIndex(parseInt(el.dataset.i, 10));
   });
+  $('peExternal').addEventListener('click', openCurrentExternal);
+  $('peRetry').addEventListener('click', function () {
+    hidePlayerError();
+    video.load();
+    video.play().catch(function () { /* ignore */ });
+  });
+  $('peClose').addEventListener('click', closePlayer);
   $('vPlay').addEventListener('click', function () { video.paused ? video.play() : video.pause(); });
   $('vPrev').addEventListener('click', function () { vStep(-1); });
   $('vNext').addEventListener('click', function () { vStep(1); });
@@ -907,7 +956,8 @@
   // 触屏手势：中部左右滑拖进度、右侧上下滑调音量、中央长按倍速
   playerEl.addEventListener('touchstart', function (e) {
     if (isNativeMode()) return;
-    if (e.target.closest('.ctrl') || e.target.closest('.native-bar')) return;
+    if (e.target.closest('.ctrl') || e.target.closest('.native-bar') ||
+        e.target.closest('.player-error')) return;
     if (e.touches.length !== 1) { gesture = null; return; }
     autoHide();
     var t = e.touches[0];
@@ -988,10 +1038,11 @@
     if (mouseLong) { stopFast(); mouseLong = false; }
   });
 
+  video.addEventListener('error', showPlayerError);
+  video.addEventListener('playing', function () { $('vSpinner').classList.add('hidden'); hidePlayerError(); });
   video.addEventListener('play', function () { $('vPlay').textContent = '⏸'; autoHide(); });
   video.addEventListener('pause', function () { $('vPlay').textContent = '▶'; $('ctrl').classList.remove('fade'); });
   video.addEventListener('waiting', function () { $('vSpinner').classList.remove('hidden'); });
-  video.addEventListener('playing', function () { $('vSpinner').classList.add('hidden'); });
   video.addEventListener('ended', function () {
     if (!cfg.autoPlayNext) return;
     if (vIndex < vList.length - 1) {

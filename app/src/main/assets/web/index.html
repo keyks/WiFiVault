@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
+<!-- 尽量让 X5 / QQ 浏览器使用页内 H5 播放器，减少原生播放器/嗅探浮层接管 -->
+<meta name="x5-video-player-type" content="h5-page">
+<meta name="x5-video-player-fullscreen" content="false">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>WiFiVault</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/app.css?v=121">
+<link rel="stylesheet" href="/app.css?v=122">
 </head>
 <body>
 
@@ -50,7 +53,9 @@
 
 <!-- 视频播放器 -->
 <div id="player" class="overlay hidden">
-  <video id="video" playsinline preload="metadata"></video>
+  <video id="video" playsinline webkit-playsinline x5-playsinline="true"
+    x5-video-player-type="h5-page" x5-video-player-fullscreen="false"
+    disablepictureinpicture preload="metadata"></video>
 
   <!-- 原生控件模式：仅保留系统不提供的倍速 / 字幕 / 模式切换 -->
   <div id="nativeBar" class="native-bar hidden">
@@ -69,6 +74,19 @@
     <button class="icon-btn" id="nvSub" title="字幕">CC</button>
     <button class="icon-btn" id="nvFull" title="全屏 (F)">⛶</button>
     <button class="icon-btn" id="nvMode" title="播放器显示模式">模式·自动</button>
+  </div>
+
+  <!-- 视频无法解码 / 网络失败时的兜底 -->
+  <div id="playerError" class="player-error hidden">
+    <div class="pe-box">
+      <div class="pe-title">视频无法播放</div>
+      <div class="pe-msg" id="peMsg"></div>
+      <div class="pe-actions">
+        <button class="primary" id="peExternal">用系统播放器打开</button>
+        <button class="icon-btn" id="peRetry">重试</button>
+        <button class="icon-btn" id="peClose">关闭</button>
+      </div>
+    </div>
   </div>
 
   <div class="spinner hidden" id="vSpinner"></div>
@@ -171,6 +189,6 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="/app.js?v=121"></script>
+<script src="/app.js?v=122"></script>
 </body>
 </html>

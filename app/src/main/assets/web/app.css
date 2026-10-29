@@ -295,8 +295,48 @@ button, input, select { font: inherit; color: inherit; }
   max-height: 100dvh;
   background: #000;
   outline: none;
+  object-fit: contain;
   touch-action: none;
 }
+
+/* 视频加载/解码失败兜底 */
+.player-error {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, .72);
+}
+
+.pe-box {
+  width: min(92vw, 360px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  text-align: center;
+}
+
+.pe-title { font-size: 17px; font-weight: 600; }
+.pe-msg {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.pe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.pe-actions .primary { flex: 1 1 100%; }
+.pe-actions .icon-btn { min-height: 40px; }
 
 .hint {
   position: absolute;
@@ -705,6 +745,9 @@ button, input, select { font: inherit; color: inherit; }
   .tile .name { font-size: 14px; }
   .tile .sub { font-size: 12px; }
   .ctrl { padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); gap: 8px; }
+  /* 让关闭按钮留在左上，避开浏览器右上角的视频嗅探悬浮按钮 */
+  .ctrl-top { justify-content: flex-start; }
+  .ctrl-top .v-title { display: none; }
   .ctrl-bottom { gap: 6px; }
   .icon-btn { padding: 8px 11px; font-size: 15px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
   .vol { width: 64px; }
@@ -713,7 +756,22 @@ button, input, select { font: inherit; color: inherit; }
   .float-right { right: 10px; }
   .float-btn { padding: 8px 12px; font-size: 13px; }
   .float-btn.wide { font-size: 12.5px; }
-  .pl-panel { width: 88vw; }
+  /* 手机上选集改为底部抽屉，避开浏览器顶部的视频嗅探/悬浮按钮 */
+  .pl-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 62vh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-head { padding-top: 14px; }
   .pv-box { width: 96vw; height: 92vh; height: 92dvh; }
   .pv-top { gap: 8px; }
   .pv-actions { flex-wrap: wrap; justify-content: flex-end; }
