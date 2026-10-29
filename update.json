@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2.0",
-  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.2.0/WiFiVault-1.2.0.apk",
-  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.2.0",
-  "notes": "主界面重构、播放器显示模式、响应式布局、图片双指缩放与自动更新检查。"
+  "versionCode": 4,
+  "versionName": "1.2.1",
+  "apkUrl": "https://github.com/keyks/WiFiVault/releases/download/v1.2.1/WiFiVault-1.2.1.apk",
+  "releaseUrl": "https://github.com/keyks/WiFiVault/releases/tag/v1.2.1",
+  "notes": "手机观看端改为系统原生播放器，支持选集与自动下一集。"
 }
